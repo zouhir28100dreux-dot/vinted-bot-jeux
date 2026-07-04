@@ -1,0 +1,37 @@
+name: Vinted Monitor
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # toutes les 10 minutes
+  workflow_dispatch: {}       # bouton "Run workflow" manuel sur GitHub
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: pip install requests
+
+      - name: Lancer la surveillance Vinted
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          VINTED_SEARCH: ${{ vars.VINTED_SEARCH || 'jeux video' }}
+          VINTED_DOMAIN: ${{ vars.VINTED_DOMAIN || 'vinted.fr' }}
+        run: python vinted_monitor.py
+
+      - name: Sauvegarder les annonces déjà vues
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@github.com"
+          git add seen_items.json
+          git diff --staged --quiet || git commit -m "update seen_items.json"
+          git push
